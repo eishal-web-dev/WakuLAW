@@ -339,8 +339,7 @@ The system provides legal decision support only and should not be considered a r
 **Development Team**
 
 - Eishal
-- Team Member 2
-- Team Member 3
+- Marwah Iftikhar
 
 ---
 
