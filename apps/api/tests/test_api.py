@@ -101,3 +101,25 @@ def test_ask_with_no_documents_says_not_enough_info(client):
     body = response.json()
     assert body["sources"] == []
     assert "Not enough information" in body["answer"]
+
+
+def test_irrelevant_query_returns_no_similar_cases(client):
+    headers = register_user(client)
+    _upload(client, headers)
+    response = client.post(
+        "/api/v1/similar-cases", json={"query": "completely unrelated gibberish zzz"}, headers=headers
+    )
+    assert response.status_code == 200
+    assert response.json()["results"] == []
+
+
+def test_irrelevant_question_refuses_without_sources(client):
+    headers = register_user(client)
+    _upload(client, headers)
+    response = client.post(
+        "/api/v1/ask", json={"question": "completely unrelated gibberish zzz"}, headers=headers
+    )
+    body = response.json()
+    assert "Not enough information" in body["answer"]
+    assert body["sources"] == []
+    assert body["confidence"]["level"] == "low"

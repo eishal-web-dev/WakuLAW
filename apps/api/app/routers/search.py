@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from ai.retrieval import index as vector_index
 from app.auth import get_current_user
+from app.config import settings
 from app.db import get_db
 from app.models import Chunk, User
 from app.schemas import SimilarRequest, SimilarResponse, Source
@@ -14,10 +15,16 @@ OVERFETCH_FACTOR = 4
 
 
 def chunks_to_sources(
-    db: Session, hits: list[tuple[int, float]], user: User, limit: int
+    db: Session,
+    hits: list[tuple[int, float]],
+    user: User,
+    limit: int,
+    min_score: float = 0.0,
 ) -> list[Source]:
     sources: list[Source] = []
     for chunk_id, score in hits:
+        if score < min_score:
+            continue  # hits are sorted desc, but keep the guard simple and total
         chunk = db.get(Chunk, chunk_id)
         if chunk is None or chunk.document.owner_id != user.id:
             continue
@@ -42,4 +49,8 @@ def similar_cases(
     user: User = Depends(get_current_user),
 ):
     hits = vector_index.search(request.query, request.top_k * OVERFETCH_FACTOR)
-    return {"results": chunks_to_sources(db, hits, user, request.top_k)}
+    return {
+        "results": chunks_to_sources(
+            db, hits, user, request.top_k, min_score=settings.min_answerable
+        )
+    }

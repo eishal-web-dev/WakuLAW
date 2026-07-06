@@ -24,6 +24,9 @@ def ask(
     answer_text, level, reason, model = rag.answer(
         request.question, [(source.text, source.score) for source in sources]
     )
+    if answer_text == rag.NOT_ENOUGH:
+        # a refusal must not present weakly-related passages as "sources"
+        sources = []
     return {
         "answer": answer_text,
         "confidence": {"level": level, "reason": reason},
