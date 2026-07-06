@@ -1,4 +1,5 @@
 import { Link, NavLink } from 'react-router-dom'
+import { useAuth } from '../lib/auth'
 
 const NAV_LINKS = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -109,6 +110,8 @@ function FloatingBadge({
 }
 
 export default function Landing() {
+  const { user } = useAuth()
+
   return (
     <div className="min-h-screen bg-navy-950 text-neutral-300">
       {/* ── Top nav ─────────────────────────────────────────────────── */}
@@ -152,12 +155,14 @@ export default function Landing() {
             >
               <SunIcon />
             </button>
-            <button
-              type="button"
-              className="hidden text-sm font-medium text-neutral-400 transition-colors hover:text-white md:block"
-            >
-              Sign in
-            </button>
+            {!user && (
+              <Link
+                to="/login"
+                className="hidden text-sm font-medium text-neutral-400 transition-colors hover:text-white md:block"
+              >
+                Sign in
+              </Link>
+            )}
             <Link
               to="/dashboard"
               className="rounded-full bg-gold-bright px-5 py-2 text-sm font-bold text-navy-950 transition-colors hover:bg-gold-light"

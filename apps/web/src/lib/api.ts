@@ -10,8 +10,66 @@ export const API_BASE_URL: string =
   'http://localhost:8000/api/v1'
 
 // ---------------------------------------------------------------------------
+// Auth token storage
+// ---------------------------------------------------------------------------
+
+const TOKEN_KEY = 'wakulaw_token'
+const USER_KEY = 'wakulaw_user'
+
+export function getStoredToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function getStoredUser(): User | null {
+  const raw = localStorage.getItem(USER_KEY)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as User
+  } catch {
+    return null
+  }
+}
+
+export function setAuthStorage(token: string, user: User): void {
+  localStorage.setItem(TOKEN_KEY, token)
+  localStorage.setItem(USER_KEY, JSON.stringify(user))
+}
+
+export function clearAuthStorage(): void {
+  localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem(USER_KEY)
+}
+
+function authHeaders(): Record<string, string> {
+  const token = getStoredToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+/**
+ * A protected endpoint rejected our token: clear the session and send the
+ * user to the login page. Auth endpoints (`/auth/*`) are exempt — a 401
+ * there means "wrong credentials", not "session expired".
+ */
+function handleSessionExpired(): ApiError {
+  clearAuthStorage()
+  window.location.assign('/login')
+  return new ApiError('Your session has expired. Please sign in again.', 401)
+}
+
+// ---------------------------------------------------------------------------
 // Types (mirror the backend contract exactly)
 // ---------------------------------------------------------------------------
+
+export interface User {
+  id: number
+  email: string
+  name: string
+}
+
+export interface AuthResponse {
+  token: string
+  user: User
+}
 
 export interface DocumentMeta {
   id: number
@@ -110,12 +168,22 @@ export function errorMessage(err: unknown): string {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response
   try {
-    res = await fetch(`${API_BASE_URL}${path}`, init)
+    res = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers: {
+        ...authHeaders(),
+        ...(init?.headers as Record<string, string> | undefined),
+      },
+    })
   } catch {
     throw new ApiError(
       'Could not reach the WakuLaw API. Make sure the backend is running.',
       0,
     )
+  }
+
+  if (res.status === 401 && !path.startsWith('/auth/')) {
+    throw handleSessionExpired()
   }
 
   if (!res.ok) {
@@ -143,6 +211,28 @@ function postJson<T>(path: string, body: unknown): Promise<T> {
 // ---------------------------------------------------------------------------
 // Endpoints
 // ---------------------------------------------------------------------------
+
+/** POST /auth/register */
+export function registerAccount(
+  email: string,
+  name: string,
+  password: string,
+): Promise<AuthResponse> {
+  return postJson<AuthResponse>('/auth/register', { email, name, password })
+}
+
+/** POST /auth/login */
+export function loginAccount(
+  email: string,
+  password: string,
+): Promise<AuthResponse> {
+  return postJson<AuthResponse>('/auth/login', { email, password })
+}
+
+/** GET /auth/me */
+export function getMe(): Promise<User> {
+  return request<User>('/auth/me')
+}
 
 /** GET /health */
 export function getHealth(): Promise<HealthResponse> {
@@ -197,6 +287,8 @@ export function uploadDocument(
     const xhr = new XMLHttpRequest()
     xhr.open('POST', `${API_BASE_URL}/documents/upload`)
     xhr.responseType = 'json'
+    const token = getStoredToken()
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && onProgress) {
@@ -207,6 +299,8 @@ export function uploadDocument(
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve(xhr.response as Document)
+      } else if (xhr.status === 401) {
+        reject(handleSessionExpired())
       } else {
         const fallback = `Upload failed with status ${xhr.status}`
         reject(new ApiError(detailFromBody(xhr.response, fallback), xhr.status))

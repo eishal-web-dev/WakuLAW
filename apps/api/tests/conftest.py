@@ -27,6 +27,15 @@ def client():
         yield test_client
 
 
+def register_user(client, email="tester@example.com", name="Test User", password="secret123"):
+    """Register a user and return auth headers for protected endpoints."""
+    response = client.post(
+        "/api/v1/auth/register", json={"email": email, "name": name, "password": password}
+    )
+    assert response.status_code == 201, response.text
+    return {"Authorization": f"Bearer {response.json()['token']}"}
+
+
 SAMPLE_JUDGMENT = """
 IN THE SUPREME COURT OF PAKISTAN
 Criminal Appeal No. 123 of 2020

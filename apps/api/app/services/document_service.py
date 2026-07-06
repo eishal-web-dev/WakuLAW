@@ -13,7 +13,7 @@ from app.config import settings
 from app.models import Chunk, Document
 
 
-def ingest_upload(db: Session, file: UploadFile) -> Document:
+def ingest_upload(db: Session, file: UploadFile, owner_id: int) -> Document:
     ext = Path(file.filename or "").suffix.lower()
     if ext not in SUPPORTED_EXTENSIONS:
         raise HTTPException(
@@ -44,6 +44,7 @@ def ingest_upload(db: Session, file: UploadFile) -> Document:
         )
 
     document = Document(
+        owner_id=owner_id,
         filename=file.filename or destination.name,
         title=Path(file.filename or destination.name).stem.replace("_", " ").replace("-", " ").strip(),
         size_bytes=len(content),

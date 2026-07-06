@@ -3,6 +3,28 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
+class RegisterRequest(BaseModel):
+    email: str = Field(min_length=5, max_length=255, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    name: str = Field(min_length=2, max_length=100)
+    password: str = Field(min_length=8, max_length=128)
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class UserOut(BaseModel):
+    id: int
+    email: str
+    name: str
+
+
+class AuthResponse(BaseModel):
+    token: str
+    user: UserOut
+
+
 class SummaryOut(BaseModel):
     main_issue: str
     key_facts: list[str]

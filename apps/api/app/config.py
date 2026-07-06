@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2"
 
+    # auth — override SECRET_KEY in .env for anything beyond local development
+    secret_key: str = "dev-only-change-me"
+    token_expire_hours: int = 24 * 7
+
     chunk_words: int = 300
     chunk_overlap_words: int = 50
     top_k: int = 5

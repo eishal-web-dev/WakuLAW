@@ -1,4 +1,5 @@
-import { NavLink, Outlet, Link } from 'react-router-dom'
+import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../lib/auth'
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: '▦' },
@@ -34,6 +35,14 @@ function Logo() {
  * nav on small screens. Rendered around every page except the landing page.
  */
 export default function Layout() {
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/', { replace: true })
+  }
+
   return (
     <div className="min-h-screen md:flex">
       {/* Sidebar (desktop) */}
@@ -51,6 +60,24 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
+        {/* User block */}
+        <div className="border-t border-line px-4 py-4">
+          {user && (
+            <div className="mb-3 px-2">
+              <p className="truncate text-sm font-semibold text-neutral-100">
+                {user.name}
+              </p>
+              <p className="truncate text-xs text-neutral-500">{user.email}</p>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="w-full rounded-xl border border-line px-3.5 py-2 text-left text-sm font-medium text-neutral-400 transition-colors hover:border-gold/40 hover:text-gold"
+          >
+            ← Logout
+          </button>
+        </div>
         <p className="border-t border-line px-6 py-4 text-xs leading-relaxed text-neutral-500">
           Decision-support only — not legal advice.
         </p>
@@ -60,6 +87,20 @@ export default function Layout() {
       <header className="sticky top-0 z-10 border-b border-line bg-ink-900/95 backdrop-blur md:hidden">
         <div className="flex items-center justify-between px-4 py-3">
           <Logo />
+          <div className="flex min-w-0 items-center gap-3">
+            {user && (
+              <span className="truncate text-xs text-neutral-500">
+                {user.name}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="shrink-0 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-neutral-400 transition-colors hover:border-gold/40 hover:text-gold"
+            >
+              Logout
+            </button>
+          </div>
         </div>
         <nav
           className="flex gap-1 overflow-x-auto px-3 pb-2"

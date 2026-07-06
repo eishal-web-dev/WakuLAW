@@ -44,7 +44,12 @@ Tests use fast deterministic fake embeddings (`FAKE_EMBEDDINGS=1`) — no model 
 
 ## Endpoints
 
+All endpoints except `/health` and `/auth/*` require `Authorization: Bearer <token>` (get a token from register/login). Set `SECRET_KEY` in `.env` for any non-development use.
+
 ```
+POST /api/v1/auth/register              {"email", "name", "password"}
+POST /api/v1/auth/login                 {"email", "password"}
+GET  /api/v1/auth/me
 GET  /api/v1/health
 POST /api/v1/documents/upload          (.txt / .pdf, max 20 MB)
 GET  /api/v1/documents

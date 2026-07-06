@@ -10,10 +10,23 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    password_hash: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    documents: Mapped[list["Document"]] = relationship(back_populates="owner")
+
+
 class Document(Base):
     __tablename__ = "documents"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     filename: Mapped[str] = mapped_column(String(255))
     title: Mapped[str] = mapped_column(String(255))
     size_bytes: Mapped[int] = mapped_column(Integer)
@@ -21,6 +34,7 @@ class Document(Base):
     summary: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
+    owner: Mapped[User] = relationship(back_populates="documents")
     chunks: Mapped[list["Chunk"]] = relationship(
         back_populates="document", cascade="all, delete-orphan"
     )
