@@ -1,0 +1,52 @@
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# ---- Environment / secrets ----
+.env
+.env.*
+!.env.example
+
+# ---- Node / frontend ----
+node_modules/
+dist/
+build/
+*.local
+npm-debug.log*
+coverage/
+
+# ---- Python / backend ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# ---- Databases / uploads ----
+*.db
+*.sqlite3
+uploads/
+storage/
+
+# ---- Datasets (only small cleaned samples are committed) ----
+datasets/raw/
+datasets/processed/
+
+# ---- AI artifacts ----
+*.faiss
+*.index
+models/
+embeddings/
+*.pt
+*.bin
+*.safetensors
+
+# ---- Logs ----
+logs/
+*.log
