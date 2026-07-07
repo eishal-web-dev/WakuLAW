@@ -1,123 +1,105 @@
-import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { FileText, Search, Sparkles } from 'lucide-react'
 import { listDocuments, errorMessage } from '../lib/api'
 import type { DocumentMeta } from '../lib/api'
 import { formatBytes, formatDate } from '../lib/format'
-import PageHeader from '../components/PageHeader'
-import Spinner from '../components/Spinner'
+import { Card, Badge, Input } from '../components/design'
+import UploadZone from '../components/UploadZone'
 import ErrorAlert from '../components/ErrorAlert'
-import EmptyState from '../components/EmptyState'
+import Spinner from '../components/Spinner'
 
 export default function Documents() {
-  const [documents, setDocuments] = useState<DocumentMeta[] | null>(null)
-  const [total, setTotal] = useState(0)
-  const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
+  const [docs, setDocs] = useState<DocumentMeta[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
 
-  useEffect(() => {
-    let cancelled = false
-    listDocuments()
-      .then((res) => {
-        if (cancelled) return
-        setDocuments(res.items)
-        setTotal(res.total)
-      })
-      .catch((err) => {
-        if (!cancelled) setError(errorMessage(err))
-      })
-    return () => {
-      cancelled = true
+  const refresh = useCallback(async () => {
+    try {
+      const res = await listDocuments()
+      setDocs(res.items)
+      setError(null)
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setLoading(false)
     }
   }, [])
 
+  useEffect(() => {
+    void refresh()
+  }, [refresh])
+
+  const filtered = docs.filter(
+    (d) =>
+      d.title.toLowerCase().includes(search.toLowerCase()) ||
+      d.filename.toLowerCase().includes(search.toLowerCase()),
+  )
+
   return (
-    <div>
-      <PageHeader
-        title="Documents"
-        subtitle={
-          documents
-            ? `${total} document${total === 1 ? '' : 's'} in your workspace.`
-            : 'Your uploaded legal documents.'
-        }
-        actions={
-          <Link
-            to="/upload"
-            className="rounded-xl bg-gold px-4 py-2 text-sm font-semibold text-ink-950 transition-colors hover:bg-gold-light"
-          >
-            Upload Document
-          </Link>
-        }
-      />
+    <div className="p-8 space-y-7 overflow-y-auto h-full">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Documents</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {docs.length} document{docs.length === 1 ? '' : 's'} in your library
+          </p>
+        </div>
+      </div>
 
       {error && <ErrorAlert message={error} />}
-      {!documents && !error && <Spinner label="Loading documents…" />}
 
-      {documents && documents.length === 0 && (
-        <EmptyState
-          icon="☰"
-          title="No documents yet"
-          description="Upload a court judgment or legal document to start summarizing, asking questions, and finding similar cases."
-          action={
-            <Link
-              to="/upload"
-              className="rounded-xl bg-gold px-4 py-2 text-sm font-semibold text-ink-950 transition-colors hover:bg-gold-light"
-            >
-              Upload your first document
-            </Link>
-          }
+      <UploadZone onUploaded={() => void refresh()} />
+
+      <div className="flex items-center gap-3">
+        <Input
+          placeholder="Search documents..."
+          className="flex-1 max-w-xs"
+          icon={<Search size={14} />}
+          value={search}
+          onChange={setSearch}
         />
-      )}
+      </div>
 
-      {documents && documents.length > 0 && (
-        <div className="overflow-x-auto rounded-card border border-line bg-ink-900">
-          <table className="w-full min-w-[640px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-line text-xs uppercase tracking-wider text-neutral-500">
-                <th className="px-5 py-3.5 font-medium">Title</th>
-                <th className="px-5 py-3.5 font-medium">Filename</th>
-                <th className="px-5 py-3.5 font-medium">Size</th>
-                <th className="px-5 py-3.5 font-medium">Chunks</th>
-                <th className="px-5 py-3.5 font-medium">Uploaded</th>
-                <th className="px-5 py-3.5 font-medium">Summary</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {documents.map((doc) => (
-                <tr
-                  key={doc.id}
-                  onClick={() => navigate(`/documents/${doc.id}`)}
-                  className="cursor-pointer transition-colors hover:bg-ink-850"
-                >
-                  <td className="max-w-[16rem] px-5 py-4">
-                    <span className="block truncate font-medium text-neutral-100">
-                      {doc.title}
-                    </span>
-                  </td>
-                  <td className="max-w-[12rem] px-5 py-4">
-                    <span className="block truncate text-neutral-400">
-                      {doc.filename}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4 text-neutral-400">
-                    {formatBytes(doc.size_bytes)}
-                  </td>
-                  <td className="px-5 py-4 text-neutral-400">{doc.num_chunks}</td>
-                  <td className="whitespace-nowrap px-5 py-4 text-neutral-400">
-                    {formatDate(doc.created_at)}
-                  </td>
-                  <td className="px-5 py-4">
-                    {doc.has_summary ? (
-                      <span className="rounded-full border border-gold/30 bg-gold/10 px-2.5 py-0.5 text-xs font-semibold text-gold">
-                        Ready
+      {loading ? (
+        <div className="py-10 flex justify-center"><Spinner label="Loading documents…" /></div>
+      ) : filtered.length === 0 ? (
+        <Card className="p-10 text-center text-sm text-muted-foreground">
+          {docs.length === 0
+            ? 'No documents yet — drop a file above to build your library.'
+            : 'No documents match your search.'}
+        </Card>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filtered.map((doc) => {
+            const isPdf = doc.filename.toLowerCase().endsWith('.pdf')
+            return (
+              <Card
+                key={doc.id}
+                className="p-4 hover:border-white/10 transition-all cursor-pointer group"
+              >
+                <button className="text-left w-full" onClick={() => navigate(`/documents/${doc.id}`)}>
+                  <div className={`w-10 h-12 rounded-lg flex items-center justify-center mb-3 ${isPdf ? 'bg-red-500/10' : 'bg-blue-500/10'}`}>
+                    <FileText size={20} className={isPdf ? 'text-red-400' : 'text-blue-400'} />
+                  </div>
+                  <div className="text-xs font-semibold text-foreground mb-1 truncate">{doc.title}</div>
+                  <div className="text-[10px] text-muted-foreground mb-2">
+                    {formatBytes(doc.size_bytes)} · {formatDate(doc.created_at)}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Badge label={`${doc.num_chunks} chunks`} />
+                    {doc.has_summary && (
+                      <span className="flex items-center gap-1 text-[10px]" style={{ color: '#D4AF37' }}>
+                        <Sparkles size={10} /> Summary
                       </span>
-                    ) : (
-                      <span className="text-xs text-neutral-600">—</span>
                     )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                </button>
+              </Card>
+            )
+          })}
         </div>
       )}
     </div>

@@ -120,7 +120,8 @@ def test_irrelevant_question_refuses_without_sources(client):
         "/api/v1/ask", json={"question": "completely unrelated gibberish zzz"}, headers=headers
     )
     body = response.json()
-    assert "Not enough information" in body["answer"]
+    # short non-question input now goes through lookup mode and reports absence
+    assert "does not appear" in body["answer"] or "Not enough information" in body["answer"]
     assert body["sources"] == []
     assert body["confidence"]["level"] == "low"
 

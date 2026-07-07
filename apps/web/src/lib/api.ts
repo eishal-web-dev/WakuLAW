@@ -134,6 +134,38 @@ export interface SimilarCasesResponse {
   results: Source[]
 }
 
+export type CaseStatus = 'Active' | 'Review' | 'On Hold' | 'Closed'
+export type CasePriority = 'Low' | 'Medium' | 'High' | 'Critical'
+
+export interface Case {
+  id: number
+  case_number: string
+  title: string
+  case_type: string
+  status: CaseStatus
+  priority: CasePriority
+  description: string | null
+  deadline: string | null
+  num_documents: number
+  created_at: string
+}
+
+export interface CaseListResponse {
+  items: Case[]
+  total: number
+}
+
+export interface CaseCreatePayload {
+  title: string
+  case_type: string
+  status?: CaseStatus
+  priority?: CasePriority
+  description?: string
+  deadline?: string
+}
+
+export type CaseUpdatePayload = Partial<CaseCreatePayload>
+
 // ---------------------------------------------------------------------------
 // Error handling
 // ---------------------------------------------------------------------------
@@ -208,6 +240,41 @@ function postJson<T>(path: string, body: unknown): Promise<T> {
   })
 }
 
+function patchJson<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
+/** DELETE helper for endpoints that return 204 No Content. */
+async function del(path: string): Promise<void> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE_URL}${path}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    })
+  } catch {
+    throw new ApiError(
+      'Could not reach the WakuLaw API. Make sure the backend is running.',
+      0,
+    )
+  }
+  if (res.status === 401) throw handleSessionExpired()
+  if (!res.ok) {
+    const fallback = `Request failed with status ${res.status}`
+    let message = fallback
+    try {
+      message = detailFromBody(await res.json(), fallback)
+    } catch {
+      // Non-JSON error body — keep the fallback message.
+    }
+    throw new ApiError(message, res.status)
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Endpoints
 // ---------------------------------------------------------------------------
@@ -273,6 +340,49 @@ export function findSimilarCases(
   return postJson<SimilarCasesResponse>('/similar-cases', body)
 }
 
+/** PATCH /documents/{id} — reassign to a case and/or retitle. */
+export function updateDocument(
+  id: number | string,
+  payload: { case_id?: number | null; title?: string },
+): Promise<DocumentMeta> {
+  return patchJson<DocumentMeta>(`/documents/${id}`, payload)
+}
+
+/** POST /cases */
+export function createCase(payload: CaseCreatePayload): Promise<Case> {
+  return postJson<Case>('/cases', payload)
+}
+
+/** GET /cases */
+export function listCases(): Promise<CaseListResponse> {
+  return request<CaseListResponse>('/cases')
+}
+
+/** GET /cases/{id} */
+export function getCase(id: number | string): Promise<Case> {
+  return request<Case>(`/cases/${id}`)
+}
+
+/** PATCH /cases/{id} */
+export function updateCase(
+  id: number | string,
+  payload: CaseUpdatePayload,
+): Promise<Case> {
+  return patchJson<Case>(`/cases/${id}`, payload)
+}
+
+/** DELETE /cases/{id} → 204 */
+export function deleteCase(id: number | string): Promise<void> {
+  return del(`/cases/${id}`)
+}
+
+/** GET /cases/{id}/documents */
+export function listCaseDocuments(
+  id: number | string,
+): Promise<DocumentListResponse> {
+  return request<DocumentListResponse>(`/cases/${id}/documents`)
+}
+
 /**
  * POST /documents/upload — multipart form field "file".
  *
@@ -282,6 +392,7 @@ export function findSimilarCases(
 export function uploadDocument(
   file: File,
   onProgress?: (percent: number) => void,
+  caseId?: number,
 ): Promise<Document> {
   return new Promise<Document>((resolve, reject) => {
     const xhr = new XMLHttpRequest()
@@ -318,6 +429,7 @@ export function uploadDocument(
 
     const form = new FormData()
     form.append('file', file)
+    if (caseId !== undefined) form.append('case_id', String(caseId))
     xhr.send(form)
   })
 }

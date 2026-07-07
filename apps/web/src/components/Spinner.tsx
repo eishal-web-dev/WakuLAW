@@ -1,11 +1,11 @@
 export default function Spinner({ label }: { label?: string }) {
   return (
-    <div className="flex items-center gap-3 text-sm text-neutral-400" role="status">
-      <span
-        aria-hidden="true"
-        className="inline-block size-4 animate-spin rounded-full border-2 border-neutral-600 border-t-gold"
+    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+      <div
+        className="h-4 w-4 animate-spin rounded-full border-2 border-[#D4AF37]/30 border-t-[#D4AF37]"
+        aria-hidden
       />
-      <span>{label ?? 'Loading…'}</span>
+      {label && <span>{label}</span>}
     </div>
   )
 }
