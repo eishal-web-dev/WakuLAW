@@ -34,6 +34,9 @@ def ask(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    if rag.is_library_question(request.question):
+        return _library_answer(db, user)
+
     kind = rag.classify_query(request.question)
 
     if kind == "vague":
@@ -91,3 +94,28 @@ def ask(
 
 def _lower(text: str) -> str:
     return text.lower()
+
+
+def _library_answer(db: Session, user: User) -> dict:
+    """Answer questions about the document collection itself from the database."""
+    documents = db.scalars(
+        select(Document).where(Document.owner_id == user.id).order_by(Document.created_at.desc())
+    ).all()
+    if not documents:
+        answer = "You have no documents uploaded yet. Use the Upload page to add your first one."
+    else:
+        lines = []
+        for document in documents:
+            if document.summary and document.summary.get("short_summary"):
+                about = rag._truncate_words(document.summary["short_summary"], 25)
+            else:
+                about = rag._truncate_words(document.text, 25) + " (not summarized yet)"
+            lines.append(f"• {document.title} — {about}")
+        plural = "s" if len(documents) != 1 else ""
+        answer = f"You have {len(documents)} document{plural} uploaded:\n\n" + "\n".join(lines)
+    return {
+        "answer": answer,
+        "confidence": {"level": "high", "reason": "Answered directly from your document library."},
+        "sources": [],
+        "model": "library",
+    }

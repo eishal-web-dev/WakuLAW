@@ -55,6 +55,21 @@ VAGUE_MESSAGE = (
 )
 
 
+_LIBRARY_PATTERNS = re.compile(
+    r"how many (of (my|our) )?(docs|documents|files)"
+    r"|(list|show)\b.{0,30}\b(docs|documents|files)"
+    r"|which (docs|documents|files)"
+    r"|what (are|do) (my|our|the|these) (docs|documents|files)( about)?\s*\??$"
+    r"|(docs|documents|files) (do (i|we) have|i have|we have)",
+    re.IGNORECASE,
+)
+
+
+def is_library_question(question: str) -> bool:
+    """Questions about the document collection itself, not its contents."""
+    return bool(_LIBRARY_PATTERNS.search(question))
+
+
 def classify_query(question: str) -> str:
     """'vague' | 'lookup' | 'question'.
 

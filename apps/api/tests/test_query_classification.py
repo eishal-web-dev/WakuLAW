@@ -54,3 +54,38 @@ def test_lookup_for_absent_name_says_not_found(client):
     body = response.json()
     assert "does not appear" in body["answer"]
     assert body["sources"] == []
+
+
+def test_library_question_lists_documents(client):
+    headers = register_user(client)
+    client.post(
+        "/api/v1/documents/upload",
+        files={"file": ("bail_case.txt", io.BytesIO(SAMPLE_JUDGMENT.encode()), "text/plain")},
+        headers=headers,
+    )
+    response = client.post(
+        "/api/v1/ask",
+        json={"question": "check how many docs we have and list what they are about"},
+        headers=headers,
+    )
+    body = response.json()
+    assert body["model"] == "library"
+    assert "1 document" in body["answer"]
+    assert "bail case" in body["answer"]
+
+
+def test_library_question_with_no_documents(client):
+    headers = register_user(client)
+    response = client.post(
+        "/api/v1/ask", json={"question": "how many documents do I have?"}, headers=headers
+    )
+    assert "no documents uploaded yet" in response.json()["answer"]
+
+
+def test_content_question_not_hijacked_by_library_intent(client):
+    from ai.qa.rag import is_library_question
+
+    assert not is_library_question("What do the documents say about bail?")
+    assert not is_library_question("How many witnesses testified according to the judgment?")
+    assert is_library_question("list all my documents")
+    assert is_library_question("how many docs we have")
