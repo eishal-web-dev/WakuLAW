@@ -1,216 +1,167 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft, FileText, Sparkles, Scale, ListChecks, Target } from 'lucide-react'
 import { getDocument, summarizeDocument, errorMessage } from '../lib/api'
-import type { Document, Summary } from '../lib/api'
+import type { Document } from '../lib/api'
 import { formatBytes, formatDate } from '../lib/format'
-import Spinner from '../components/Spinner'
+import { Btn, Card, Badge, G } from '../components/design'
 import ErrorAlert from '../components/ErrorAlert'
+import Spinner from '../components/Spinner'
 import Disclaimer from '../components/Disclaimer'
-
-function SummarySection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-gold">
-        {title}
-      </h3>
-      {children}
-    </section>
-  )
-}
-
-function SummaryPanel({ summary }: { summary: Summary }) {
-  return (
-    <div className="space-y-5 rounded-card border border-line bg-ink-900 p-6">
-      <SummarySection title="Main issue">
-        <p className="text-sm leading-relaxed text-neutral-300">
-          {summary.main_issue}
-        </p>
-      </SummarySection>
-
-      <SummarySection title="Key facts">
-        {summary.key_facts.length > 0 ? (
-          <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-neutral-300">
-            {summary.key_facts.map((fact, i) => (
-              <li key={i}>{fact}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-neutral-500">None identified.</p>
-        )}
-      </SummarySection>
-
-      <SummarySection title="Legal points">
-        {summary.legal_points.length > 0 ? (
-          <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-neutral-300">
-            {summary.legal_points.map((point, i) => (
-              <li key={i}>{point}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-neutral-500">None identified.</p>
-        )}
-      </SummarySection>
-
-      <SummarySection title="Outcome">
-        <p className="text-sm leading-relaxed text-neutral-300">
-          {summary.outcome}
-        </p>
-      </SummarySection>
-
-      <SummarySection title="Short summary">
-        <p className="text-sm leading-relaxed text-neutral-300">
-          {summary.short_summary}
-        </p>
-      </SummarySection>
-
-      <Disclaimer />
-    </div>
-  )
-}
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>()
-  const [document, setDocument] = useState<Document | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const navigate = useNavigate()
+  const [doc, setDoc] = useState<Document | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [summarizing, setSummarizing] = useState(false)
-  const [summarizeError, setSummarizeError] = useState<string | null>(null)
-  const [textOpen, setTextOpen] = useState(false)
 
   useEffect(() => {
     if (!id) return
     let cancelled = false
-    setDocument(null)
-    setLoadError(null)
+    setLoading(true)
     getDocument(id)
-      .then((doc) => {
-        if (!cancelled) setDocument(doc)
+      .then((d) => {
+        if (!cancelled) setDoc(d)
       })
       .catch((err) => {
-        if (!cancelled) setLoadError(errorMessage(err))
+        if (!cancelled) setError(errorMessage(err))
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
       })
     return () => {
       cancelled = true
     }
   }, [id])
 
-  const handleSummarize = () => {
-    if (!id || summarizing) return
+  const generateSummary = async () => {
+    if (!id || !doc) return
     setSummarizing(true)
-    setSummarizeError(null)
-    summarizeDocument(id)
-      .then((res) => {
-        setDocument((prev) =>
-          prev ? { ...prev, summary: res.summary, has_summary: true } : prev,
-        )
-      })
-      .catch((err) => setSummarizeError(errorMessage(err)))
-      .finally(() => setSummarizing(false))
+    setError(null)
+    try {
+      const res = await summarizeDocument(id)
+      setDoc({ ...doc, summary: res.summary, has_summary: true })
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setSummarizing(false)
+    }
   }
 
-  if (loadError) {
+  if (loading) {
     return (
-      <div className="space-y-4">
-        <ErrorAlert message={loadError} />
-        <Link
-          to="/documents"
-          className="inline-block text-sm font-medium text-gold hover:text-gold-light"
-        >
-          ← Back to documents
-        </Link>
+      <div className="p-8 flex justify-center h-full items-center">
+        <Spinner label="Loading document…" />
       </div>
     )
   }
 
-  if (!document) {
-    return <Spinner label="Loading document…" />
+  if (!doc) {
+    return (
+      <div className="p-8 space-y-4">
+        <ErrorAlert message={error ?? 'Document not found.'} />
+        <Btn variant="secondary" onClick={() => navigate('/documents')} icon={<ArrowLeft size={14} />}>
+          Back to Documents
+        </Btn>
+      </div>
+    )
   }
 
   return (
-    <div>
-      <Link
-        to="/documents"
-        className="mb-5 inline-block text-sm font-medium text-neutral-500 transition-colors hover:text-gold"
+    <div className="p-8 space-y-6 overflow-y-auto h-full">
+      <button
+        onClick={() => navigate(-1)}
+        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
-        ← Back to documents
-      </Link>
+        <ArrowLeft size={14} /> Back
+      </button>
 
-      {/* Title and meta */}
-      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-neutral-100">
-            {document.title}
-          </h1>
-          <p className="mt-2 text-sm text-neutral-500">
-            {document.filename} · {formatBytes(document.size_bytes)} ·{' '}
-            {document.num_chunks} chunks · uploaded{' '}
-            {formatDate(document.created_at)}
-          </p>
+      {error && <ErrorAlert message={error} />}
+
+      {/* Header */}
+      <Card className="p-6">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-red-500/10">
+            <FileText size={22} className="text-red-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold text-foreground truncate">{doc.title}</h1>
+            <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
+              <span>{doc.filename}</span>
+              <span>{formatBytes(doc.size_bytes)}</span>
+              <span>{formatDate(doc.created_at)}</span>
+              <Badge label={`${doc.num_chunks} chunks`} />
+            </div>
+          </div>
+          <Btn onClick={generateSummary} disabled={summarizing} icon={<Sparkles size={14} />}>
+            {summarizing ? 'Summarizing…' : doc.summary ? 'Regenerate Summary' : 'Generate Summary'}
+          </Btn>
         </div>
-        {!document.summary && (
-          <button
-            type="button"
-            onClick={handleSummarize}
-            disabled={summarizing}
-            className="rounded-xl bg-gold px-5 py-2.5 text-sm font-semibold text-ink-950 transition-colors hover:bg-gold-light disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {summarizing ? 'Generating summary…' : 'Generate Summary'}
-          </button>
-        )}
-      </div>
+      </Card>
 
-      {summarizeError && (
-        <div className="mb-6">
-          <ErrorAlert message={summarizeError} />
+      {/* AI Summary */}
+      {doc.summary && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Sparkles size={16} style={{ color: G }} />
+            <span className="text-sm font-semibold text-foreground">AI Summary</span>
+          </div>
+          <Card className="p-5">
+            <p className="text-sm text-muted-foreground leading-relaxed">{doc.summary.short_summary}</p>
+          </Card>
+          <div className="grid lg:grid-cols-2 gap-4">
+            <Card className="p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Target size={14} style={{ color: G }} />
+                <h4 className="text-sm font-semibold text-foreground">Main Issue</h4>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">{doc.summary.main_issue}</p>
+              <div className="flex items-center gap-2 mt-5 mb-3">
+                <Scale size={14} style={{ color: G }} />
+                <h4 className="text-sm font-semibold text-foreground">Outcome</h4>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">{doc.summary.outcome}</p>
+            </Card>
+            <Card className="p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <ListChecks size={14} style={{ color: G }} />
+                <h4 className="text-sm font-semibold text-foreground">Key Facts</h4>
+              </div>
+              <div className="space-y-2">
+                {doc.summary.key_facts.map((f) => (
+                  <div key={f} className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <div className="w-1 h-1 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: '#34D399' }} />
+                    {f}
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 mt-5 mb-3">
+                <Scale size={14} style={{ color: G }} />
+                <h4 className="text-sm font-semibold text-foreground">Legal Points</h4>
+              </div>
+              <div className="space-y-2">
+                {doc.summary.legal_points.map((p) => (
+                  <div key={p} className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <div className="w-1 h-1 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: G }} />
+                    {p}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+          <Disclaimer />
         </div>
       )}
 
-      {/* Summary */}
-      <section className="mb-8">
-        <h2 className="mb-4 text-base font-semibold text-neutral-100">Summary</h2>
-        {document.summary ? (
-          <SummaryPanel summary={document.summary} />
-        ) : (
-          <div className="rounded-card border border-dashed border-line bg-ink-900 px-6 py-10 text-center">
-            {summarizing ? (
-              <div className="flex justify-center">
-                <Spinner label="Analyzing the document — this can take a little while…" />
-              </div>
-            ) : (
-              <p className="text-sm text-neutral-500">
-                No summary yet. Click{' '}
-                <span className="font-medium text-neutral-300">
-                  Generate Summary
-                </span>{' '}
-                to produce a structured overview of this document.
-              </p>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* Full extracted text */}
-      <section>
-        <button
-          type="button"
-          onClick={() => setTextOpen((open) => !open)}
-          aria-expanded={textOpen}
-          className="flex w-full items-center justify-between rounded-card border border-line bg-ink-900 px-5 py-4 text-left transition-colors hover:border-gold/30"
-        >
-          <span className="text-base font-semibold text-neutral-100">
-            Full extracted text
-          </span>
-          <span aria-hidden="true" className="text-sm text-neutral-500">
-            {textOpen ? '▲ Hide' : '▼ Show'}
-          </span>
-        </button>
-        {textOpen && (
-          <div className="mt-2 max-h-[32rem] overflow-y-auto rounded-card border border-line bg-ink-900 p-6">
-            <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-neutral-400">
-              {document.text}
-            </pre>
-          </div>
-        )}
-      </section>
+      {/* Extracted text */}
+      <Card className="p-5">
+        <h4 className="text-sm font-semibold text-foreground mb-3">Extracted Text</h4>
+        <pre className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap font-sans max-h-[480px] overflow-y-auto">
+          {doc.text || 'No text extracted.'}
+        </pre>
+      </Card>
     </div>
   )
 }

@@ -4,7 +4,7 @@ import Spinner from './Spinner'
 
 function FullScreenLoader() {
   return (
-    <div className="flex min-h-screen items-center justify-center">
+    <div className="flex min-h-screen items-center justify-center bg-background">
       <Spinner label="Checking your session…" />
     </div>
   )
@@ -18,7 +18,7 @@ export function ProtectedRoute() {
   return <Outlet />
 }
 
-/** Wraps /login and /signup: authenticated users go to /dashboard. */
+/** Wraps /login and /register: authenticated users go to /dashboard. */
 export function GuestRoute() {
   const { token, loading } = useAuth()
   if (loading) return <FullScreenLoader />
