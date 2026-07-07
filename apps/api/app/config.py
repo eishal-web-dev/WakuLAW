@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     fake_embeddings: bool = False  # deterministic hash embeddings for fast tests/CI
 
     ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3.2"
+    ollama_model: str = "qwen2.5:3b"
 
     # auth — override SECRET_KEY in .env for anything beyond local development
     secret_key: str = "dev-only-change-me"

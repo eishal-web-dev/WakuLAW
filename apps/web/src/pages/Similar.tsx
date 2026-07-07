@@ -6,7 +6,8 @@ import PageHeader from '../components/PageHeader'
 import Spinner from '../components/Spinner'
 import ErrorAlert from '../components/ErrorAlert'
 import EmptyState from '../components/EmptyState'
-import SourceCard from '../components/SourceCard'
+import SourceGroupCard from '../components/SourceGroupCard'
+import { groupSources, passageSummary } from '../lib/sources'
 
 export default function Similar() {
   const [query, setQuery] = useState('')
@@ -75,15 +76,17 @@ export default function Similar() {
 
         {results && results.length > 0 && (
           <>
-            <p className="text-sm text-neutral-500">
-              {results.length} matching passage{results.length === 1 ? '' : 's'}{' '}
-              found, ordered by similarity.
+            <h2 className="text-base font-semibold text-neutral-100">
+              Results —{' '}
+              <span className="font-normal text-neutral-400">
+                {passageSummary(results)}
+              </span>
+            </h2>
+            <p className="text-xs text-neutral-600">
+              Ordered by similarity within each document.
             </p>
-            {results.map((source) => (
-              <SourceCard
-                key={`${source.document_id}-${source.chunk_id}`}
-                source={source}
-              />
+            {groupSources(results).map((group) => (
+              <SourceGroupCard key={group.documentId} group={group} />
             ))}
           </>
         )}

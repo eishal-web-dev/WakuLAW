@@ -7,8 +7,9 @@ import PageHeader from '../components/PageHeader'
 import Spinner from '../components/Spinner'
 import ErrorAlert from '../components/ErrorAlert'
 import ConfidenceBadge from '../components/ConfidenceBadge'
-import SourceCard from '../components/SourceCard'
+import SourceGroupCard from '../components/SourceGroupCard'
 import Disclaimer from '../components/Disclaimer'
+import { groupSources, passageSummary } from '../lib/sources'
 
 export default function Ask() {
   const [question, setQuestion] = useState('')
@@ -95,18 +96,18 @@ export default function Ask() {
               </div>
             </article>
 
-            {/* Sources */}
+            {/* Sources, grouped by document */}
             <section>
               <h2 className="mb-3 text-base font-semibold text-neutral-100">
-                Sources ({response.sources.length})
+                Sources —{' '}
+                <span className="font-normal text-neutral-400">
+                  {passageSummary(response.sources)}
+                </span>
               </h2>
               {response.sources.length > 0 ? (
                 <div className="space-y-3">
-                  {response.sources.map((source) => (
-                    <SourceCard
-                      key={`${source.document_id}-${source.chunk_id}`}
-                      source={source}
-                    />
+                  {groupSources(response.sources).map((group) => (
+                    <SourceGroupCard key={group.documentId} group={group} />
                   ))}
                 </div>
               ) : (
