@@ -2,10 +2,20 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from ai.analysis.contradictions import find_contradictions
+from ai.timeline.extract import extract_events
 from app.auth import get_current_user
 from app.db import get_db
 from app.models import Case, Chunk, Document, User
-from app.schemas import CaseCreate, CaseList, CaseOut, CaseUpdate, DocumentList
+from app.schemas import (
+    CaseCreate,
+    CaseList,
+    CaseOut,
+    CaseUpdate,
+    ContradictionsResponse,
+    DocumentList,
+    TimelineResponse,
+)
 
 router = APIRouter(prefix="/cases", tags=["cases"])
 
@@ -103,6 +113,38 @@ def delete_case(case_id: int, db: Session = Depends(get_db), user: User = Depend
         document.case_id = None
     db.delete(case)
     db.commit()
+
+
+@router.get("/{case_id}/timeline", response_model=TimelineResponse)
+def case_timeline(case_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    case = _get_owned_case(db, case_id, user)
+    documents = db.scalars(select(Document).where(Document.case_id == case.id)).all()
+    events = []
+    for document in documents:
+        for event in extract_events(document.text):
+            events.append(
+                {**event.__dict__, "document_id": document.id, "document_title": document.title}
+            )
+    events.sort(key=lambda event: event["date"])
+    return {"events": events}
+
+
+@router.post("/{case_id}/contradictions", response_model=ContradictionsResponse)
+def case_contradictions(
+    case_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
+    case = _get_owned_case(db, case_id, user)
+    documents = db.scalars(select(Document).where(Document.case_id == case.id)).all()
+    pairs = find_contradictions([(d.id, d.title, d.text) for d in documents])
+    return {
+        "pairs": pairs,
+        "documents_analyzed": len(documents),
+        "disclaimer": (
+            "Automated contradiction detection is a prototype: it flags clearly "
+            "conflicting statements and may miss subtle inconsistencies. Verify "
+            "against the original documents."
+        ),
+    }
 
 
 @router.get("/{case_id}/documents", response_model=DocumentList)

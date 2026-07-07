@@ -125,3 +125,43 @@ class SimilarRequest(BaseModel):
 
 class SimilarResponse(BaseModel):
     results: list[Source]
+
+
+class TimelineEventOut(BaseModel):
+    date: str
+    date_text: str
+    text: str
+    document_id: int
+    document_title: str
+
+
+class TimelineResponse(BaseModel):
+    events: list[TimelineEventOut]
+
+
+class CitationOut(BaseModel):
+    type: str  # statute | constitution | case_law
+    text: str
+    context: str
+
+
+class CitationsResponse(BaseModel):
+    citations: list[CitationOut]
+
+
+class ContradictionSide(BaseModel):
+    document_id: int
+    document_title: str
+    text: str
+
+
+class ContradictionPair(BaseModel):
+    a: ContradictionSide
+    b: ContradictionSide
+    score: float
+
+
+class ContradictionsResponse(BaseModel):
+    pairs: list[ContradictionPair]
+    documents_analyzed: int
+    disclaimer: str
