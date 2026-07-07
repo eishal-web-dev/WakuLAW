@@ -2,7 +2,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db import Base, engine
-from app.routers import auth_routes, documents, qa, search
+from app.routers import auth_routes, cases, documents, qa, search
 
 app = FastAPI(
     title="WakuLaw API",
@@ -22,6 +22,15 @@ app.add_middleware(
 
 Base.metadata.create_all(bind=engine)
 
+# lightweight dev migration: create_all doesn't alter existing tables
+with engine.connect() as connection:
+    from sqlalchemy import text
+
+    columns = [row[1] for row in connection.execute(text("PRAGMA table_info(documents)"))]
+    if columns and "case_id" not in columns:
+        connection.execute(text("ALTER TABLE documents ADD COLUMN case_id INTEGER"))
+        connection.commit()
+
 api = APIRouter(prefix="/api/v1")
 
 
@@ -31,6 +40,7 @@ def health():
 
 
 api.include_router(auth_routes.router)
+api.include_router(cases.router)
 api.include_router(documents.router)
 api.include_router(search.router)
 api.include_router(qa.router)

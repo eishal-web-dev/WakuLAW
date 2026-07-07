@@ -22,11 +22,27 @@ class User(Base):
     documents: Mapped[list["Document"]] = relationship(back_populates="owner")
 
 
+class Case(Base):
+    __tablename__ = "cases"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    case_number: Mapped[str] = mapped_column(String(32))
+    title: Mapped[str] = mapped_column(String(255))
+    case_type: Mapped[str] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(32), default="Active")
+    priority: Mapped[str] = mapped_column(String(32), default="Medium")
+    description: Mapped[str] = mapped_column(Text, default="")
+    deadline: Mapped[str | None] = mapped_column(String(32), nullable=True)  # ISO date
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class Document(Base):
     __tablename__ = "documents"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    case_id: Mapped[int | None] = mapped_column(ForeignKey("cases.id"), nullable=True, index=True)
     filename: Mapped[str] = mapped_column(String(255))
     title: Mapped[str] = mapped_column(String(255))
     size_bytes: Mapped[int] = mapped_column(Integer)

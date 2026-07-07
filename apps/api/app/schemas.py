@@ -53,6 +53,42 @@ class DocumentList(BaseModel):
     total: int
 
 
+class CaseCreate(BaseModel):
+    title: str = Field(min_length=3, max_length=255)
+    case_type: str = Field(min_length=2, max_length=100)
+    status: str | None = None
+    priority: str | None = None
+    description: str | None = Field(default=None, max_length=5000)
+    deadline: str | None = Field(default=None, max_length=32)
+
+
+class CaseUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=3, max_length=255)
+    case_type: str | None = Field(default=None, min_length=2, max_length=100)
+    status: str | None = None
+    priority: str | None = None
+    description: str | None = Field(default=None, max_length=5000)
+    deadline: str | None = Field(default=None, max_length=32)
+
+
+class CaseOut(BaseModel):
+    id: int
+    case_number: str
+    title: str
+    case_type: str
+    status: str
+    priority: str
+    description: str
+    deadline: str | None
+    num_documents: int
+    created_at: datetime
+
+
+class CaseList(BaseModel):
+    items: list[CaseOut]
+    total: int
+
+
 class SummarizeResponse(BaseModel):
     document_id: int
     summary: SummaryOut
