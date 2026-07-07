@@ -1,13 +1,32 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, FileText, Sparkles, Scale, ListChecks, Target } from 'lucide-react'
-import { getDocument, summarizeDocument, errorMessage } from '../lib/api'
-import type { Document } from '../lib/api'
+import { ArrowLeft, FileText, Sparkles, Scale, ListChecks, Target, BookMarked } from 'lucide-react'
+import { getDocument, summarizeDocument, getDocumentCitations, errorMessage } from '../lib/api'
+import type { Document, Citation, CitationType } from '../lib/api'
 import { formatBytes, formatDate } from '../lib/format'
 import { Btn, Card, Badge, G } from '../components/design'
 import ErrorAlert from '../components/ErrorAlert'
 import Spinner from '../components/Spinner'
 import Disclaimer from '../components/Disclaimer'
+
+/** Citation groups, styled per the app palette (gold / blue / green). */
+const CITATION_GROUPS: { type: CitationType; label: string; badgeClass: string }[] = [
+  {
+    type: 'statute',
+    label: 'Statute',
+    badgeClass: 'bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/25',
+  },
+  {
+    type: 'constitution',
+    label: 'Constitution',
+    badgeClass: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  },
+  {
+    type: 'case_law',
+    label: 'Case Law',
+    badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  },
+]
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>()
@@ -16,6 +35,8 @@ export default function DocumentDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [summarizing, setSummarizing] = useState(false)
+  const [citations, setCitations] = useState<Citation[] | null>(null)
+  const [citationsError, setCitationsError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -30,6 +51,13 @@ export default function DocumentDetail() {
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
+      })
+    getDocumentCitations(id)
+      .then((res) => {
+        if (!cancelled) setCitations(res.citations)
+      })
+      .catch((err) => {
+        if (!cancelled) setCitationsError(errorMessage(err))
       })
     return () => {
       cancelled = true
@@ -154,6 +182,54 @@ export default function DocumentDetail() {
           <Disclaimer />
         </div>
       )}
+
+      {/* Citations */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <BookMarked size={16} style={{ color: G }} />
+          <span className="text-sm font-semibold text-foreground">Citations</span>
+        </div>
+        {citationsError ? (
+          <Card className="p-5 text-xs text-muted-foreground">
+            Could not load citations: {citationsError}
+          </Card>
+        ) : citations === null ? (
+          <Card className="p-5">
+            <Spinner label="Detecting citations…" />
+          </Card>
+        ) : citations.length === 0 ? (
+          <Card className="p-5 text-sm text-muted-foreground">No citations detected.</Card>
+        ) : (
+          <div className="grid lg:grid-cols-3 gap-4">
+            {CITATION_GROUPS.map(({ type, label, badgeClass }) => {
+              const group = citations.filter((c) => c.type === type)
+              if (group.length === 0) return null
+              return (
+                <Card key={type} className="p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${badgeClass}`}
+                    >
+                      {label}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{group.length}</span>
+                  </div>
+                  <div className="space-y-3">
+                    {group.map((c, i) => (
+                      <div key={`${c.text}-${i}`} className="text-xs leading-relaxed">
+                        <div className="font-bold text-foreground">{c.text}</div>
+                        {c.context && (
+                          <p className="text-muted-foreground mt-0.5">{c.context}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Extracted text */}
       <Card className="p-5">
