@@ -4,8 +4,10 @@
 WakuLaw is a Final Year Project: an Explainable AI Legal Intelligence Platform for Pakistani legal research (supervisor-approved FYP proposal, session 2023–2027). The approved proposal describes a large platform; **we are building it MVP-first**. The authoritative scope for the current version is `docs/00_MVP/MVP_SCOPE.md`.
 
 ## Current state (update this section as the project progresses)
-- Documentation foundation complete (`docs/00_MVP/`), issue backlog created (#1–#41, milestones M0–M10).
-- No application code yet. Next up: M2 (frontend skeleton, issue #8) and M3 (backend skeleton, issue #16).
+- **MVP is implemented and merged** (PRs #42–#45, #49): auth, documents pipeline, cases CRUD, RAG Q&A with query intents + Qwen2.5-3B via Ollama (extractive fallback), similar-case search, extractive summarization, Figma-design frontend (24 screens: live/preview/marketing split). 36 backend tests.
+- **Read `docs/00_MVP/MASTER_SYSTEM_DOCUMENT.md` first** — it is the complete, current description of the system.
+- Open work: #24 datasets, #38–#40 testing report/CI/user guide, #46–#48 RAG upgrades (reranker, hybrid search, eval harness), #41 optional prediction. PR #50 (one-command `run.py`) may still be open.
+- **Workflow rule learned the hard way:** never push follow-up commits to a branch whose PR is already under review — Eishal merges fast; open a new branch/PR instead.
 - The older docs in `docs/01_...`–`docs/12_...` describe the full long-term vision — treat them as future-scope reference, NOT as the current build target. Where they conflict with `docs/00_MVP/`, the MVP docs win.
 
 ## MVP scope (build ONLY this unless explicitly asked)
