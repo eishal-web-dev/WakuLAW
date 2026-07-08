@@ -13,6 +13,7 @@ class Settings(BaseSettings):
 
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     fake_embeddings: bool = False  # deterministic hash embeddings for fast tests/CI
+    fake_nli: bool = False  # deterministic contradiction heuristic for fast tests/CI
 
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "qwen2.5:3b"

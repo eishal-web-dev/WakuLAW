@@ -166,6 +166,52 @@ export interface CaseCreatePayload {
 
 export type CaseUpdatePayload = Partial<CaseCreatePayload>
 
+export interface TimelineEvent {
+  /** ISO date (YYYY-MM-DD) used for chronological ordering. */
+  date: string
+  /** The date exactly as written in the source document. */
+  date_text: string
+  /** The sentence describing the event. */
+  text: string
+  document_id: number
+  document_title: string
+}
+
+export interface TimelineResponse {
+  events: TimelineEvent[]
+}
+
+export type CitationType = 'statute' | 'constitution' | 'case_law'
+
+export interface Citation {
+  type: CitationType
+  text: string
+  context: string
+}
+
+export interface CitationsResponse {
+  citations: Citation[]
+}
+
+export interface ContradictionStatement {
+  document_id: number
+  document_title: string
+  text: string
+}
+
+export interface ContradictionPair {
+  a: ContradictionStatement
+  b: ContradictionStatement
+  /** Conflict score in [0, 1]. */
+  score: number
+}
+
+export interface ContradictionsResponse {
+  pairs: ContradictionPair[]
+  documents_analyzed: number
+  disclaimer: string
+}
+
 // ---------------------------------------------------------------------------
 // Error handling
 // ---------------------------------------------------------------------------
@@ -381,6 +427,42 @@ export function listCaseDocuments(
   id: number | string,
 ): Promise<DocumentListResponse> {
   return request<DocumentListResponse>(`/cases/${id}/documents`)
+}
+
+/** GET /documents/{id}/timeline — dated events extracted from one document. */
+export function getDocumentTimeline(
+  id: number | string,
+): Promise<TimelineResponse> {
+  return request<TimelineResponse>(`/documents/${id}/timeline`)
+}
+
+/**
+ * GET /cases/{id}/timeline — events merged & chronologically sorted across
+ * all of the case's documents.
+ */
+export function getCaseTimeline(
+  id: number | string,
+): Promise<TimelineResponse> {
+  return request<TimelineResponse>(`/cases/${id}/timeline`)
+}
+
+/** GET /documents/{id}/citations — legal citations detected in a document. */
+export function getDocumentCitations(
+  id: number | string,
+): Promise<CitationsResponse> {
+  return request<CitationsResponse>(`/documents/${id}/citations`)
+}
+
+/**
+ * POST /cases/{id}/contradictions — cross-document contradiction analysis.
+ * Can take ~10-30s on the first run; callers should show an analyzing state.
+ */
+export function analyzeCaseContradictions(
+  id: number | string,
+): Promise<ContradictionsResponse> {
+  return request<ContradictionsResponse>(`/cases/${id}/contradictions`, {
+    method: 'POST',
+  })
 }
 
 /**

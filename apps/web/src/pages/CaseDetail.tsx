@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Calendar, FileText, BookOpen, Sparkles } from 'lucide-react'
-import { getCase, listCaseDocuments, errorMessage } from '../lib/api'
-import type { Case, DocumentMeta } from '../lib/api'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft, Calendar, FileText, BookOpen, Sparkles, CalendarClock, GitCompareArrows } from 'lucide-react'
+import { getCase, listCaseDocuments, analyzeCaseContradictions, errorMessage } from '../lib/api'
+import type { Case, DocumentMeta, ContradictionsResponse } from '../lib/api'
 import { formatBytes, formatDate } from '../lib/format'
 import { Btn, Card, Badge, G } from '../components/design'
 import UploadZone from '../components/UploadZone'
 import ErrorAlert from '../components/ErrorAlert'
 import Spinner from '../components/Spinner'
+import Disclaimer from '../components/Disclaimer'
 
 export default function CaseDetail() {
   const { id } = useParams<{ id: string }>()
@@ -16,6 +17,23 @@ export default function CaseDetail() {
   const [docs, setDocs] = useState<DocumentMeta[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [analyzing, setAnalyzing] = useState(false)
+  const [contradictions, setContradictions] = useState<ContradictionsResponse | null>(null)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
+
+  const detectContradictions = async () => {
+    if (!id) return
+    setAnalyzing(true)
+    setAnalysisError(null)
+    setContradictions(null)
+    try {
+      setContradictions(await analyzeCaseContradictions(id))
+    } catch (err) {
+      setAnalysisError(errorMessage(err))
+    } finally {
+      setAnalyzing(false)
+    }
+  }
 
   const refresh = useCallback(async () => {
     if (!id) return
@@ -105,6 +123,102 @@ export default function CaseDetail() {
             <div className="text-sm font-semibold text-foreground">{v}</div>
           </Card>
         ))}
+      </div>
+
+      {/* Analysis */}
+      <div>
+        <h3 className="text-base font-semibold text-foreground mb-4">Analysis</h3>
+        <Card className="p-5 space-y-5">
+          <div className="flex flex-wrap gap-3">
+            <Btn
+              variant="secondary"
+              icon={<CalendarClock size={14} />}
+              onClick={() => navigate(`/timeline?case=${caseData.id}`)}
+            >
+              View Timeline
+            </Btn>
+            <Btn
+              icon={<GitCompareArrows size={14} />}
+              onClick={() => void detectContradictions()}
+              disabled={analyzing}
+            >
+              {analyzing ? 'Analyzing…' : 'Detect Contradictions'}
+            </Btn>
+          </div>
+
+          {analyzing && (
+            <div className="pt-1">
+              <Spinner label="Analyzing statements across documents… this can take up to 30 seconds." />
+            </div>
+          )}
+
+          {analysisError && <ErrorAlert message={analysisError} />}
+
+          {contradictions && (
+            <div className="space-y-4">
+              <div className="text-xs text-muted-foreground">
+                {contradictions.documents_analyzed} document
+                {contradictions.documents_analyzed === 1 ? '' : 's'} analyzed ·{' '}
+                {contradictions.pairs.length} potential conflict
+                {contradictions.pairs.length === 1 ? '' : 's'}
+              </div>
+
+              {contradictions.pairs.length === 0 ? (
+                <Card className="p-6 text-center text-sm text-muted-foreground">
+                  No clear contradictions detected across this case's documents.
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {contradictions.pairs.map((pair, i) => {
+                    const pct = Math.round(pair.score <= 1 ? pair.score * 100 : pair.score)
+                    return (
+                      <Card key={i} className="p-4 border-red-500/20">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-xs font-semibold text-muted-foreground">
+                            Conflict #{i + 1}
+                          </span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-red-500/10 text-red-400 border-red-500/20">
+                            {pct}% conflict
+                          </span>
+                        </div>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          {[
+                            { label: 'Statement A', s: pair.a },
+                            { label: 'Statement B', s: pair.b },
+                          ].map(({ label, s }) => (
+                            <div
+                              key={label}
+                              className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3"
+                            >
+                              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">
+                                {label}
+                              </div>
+                              <p className="text-xs text-foreground leading-relaxed">{s.text}</p>
+                              <Link
+                                to={`/documents/${s.document_id}`}
+                                className="inline-flex items-center gap-1.5 mt-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                <FileText size={11} style={{ color: G }} />
+                                {s.document_title}
+                              </Link>
+                            </div>
+                          ))}
+                        </div>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+
+              {contradictions.disclaimer && (
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {contradictions.disclaimer}
+                </p>
+              )}
+              <Disclaimer />
+            </div>
+          )}
+        </Card>
       </div>
 
       {/* Upload into case */}

@@ -3,11 +3,20 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from ai.citations.extract import extract_citations
 from ai.summarization.extractive import summarize
+from ai.timeline.extract import extract_events
 from app.auth import get_current_user
 from app.db import get_db
 from app.models import Chunk, Document, User
-from app.schemas import DocumentList, DocumentMeta, DocumentOut, SummarizeResponse
+from app.schemas import (
+    CitationsResponse,
+    DocumentList,
+    DocumentMeta,
+    DocumentOut,
+    SummarizeResponse,
+    TimelineResponse,
+)
 from app.services.document_service import ingest_upload
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -97,6 +106,32 @@ def get_document(
 ):
     document = _get_owned_document(db, document_id, user)
     return {**_meta(document, len(document.chunks)), "text": document.text, "summary": document.summary}
+
+
+@router.get("/{document_id}/timeline", response_model=TimelineResponse)
+def document_timeline(
+    document_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    document = _get_owned_document(db, document_id, user)
+    events = extract_events(document.text)
+    return {
+        "events": [
+            {**event.__dict__, "document_id": document.id, "document_title": document.title}
+            for event in events
+        ]
+    }
+
+
+@router.get("/{document_id}/citations", response_model=CitationsResponse)
+def document_citations(
+    document_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    document = _get_owned_document(db, document_id, user)
+    return {"citations": [citation.__dict__ for citation in extract_citations(document.text)]}
 
 
 @router.post("/{document_id}/summarize", response_model=SummarizeResponse)
